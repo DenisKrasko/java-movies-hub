@@ -23,6 +23,8 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class MoviesServer {
+	private static final int DEFAULT_BACKLOG = 0;
+	private static final int IMMEDIATE_STOP_DELAY = 0;
 	private final HttpServer server;
 
 	abstract class BaseHttpHandler implements HttpHandler {
@@ -63,17 +65,31 @@ public class MoviesServer {
 		@Override
 		public void handle(HttpExchange ex) throws IOException {
 			String method = ex.getRequestMethod();
+			String path = ex.getRequestURI().getPath();
+			String query = ex.getRequestURI().getQuery();
 			System.out.println("Началась обработка " + method + " /movies запроса от клиента.");
-			if (method.equalsIgnoreCase("GET") && ex.getRequestURI().getPath().split("/").length == 2
-					&& ex.getRequestURI().getQuery() == null) {
+			if (method.equalsIgnoreCase("GET")
+					&& "/movies".equals(path)
+					&& query == null) {
 				handleGetRequest(ex);
-			} else if (method.equalsIgnoreCase("POST") && ex.getRequestURI().getPath().split("/").length == 2) {
+			} else if (method.equalsIgnoreCase("POST")
+					&& "/movies".equals(path)
+					&& query == null) {
 				handlePostRequest(ex);
-			} else if (method.equalsIgnoreCase("GET") && ex.getRequestURI().getPath().split("/").length == 3 && ex.getRequestURI().getPath().split("/")[1].equals("movies")) {
+			} else if (method.equalsIgnoreCase("GET")
+					&& path != null
+					&& path.startsWith("/movies/")
+					&& path.length() > "/movies/".length()) {
 				handleGetRequestWithId(ex);
-			} else if (method.equalsIgnoreCase("DELETE") && ex.getRequestURI().getPath().split("/").length == 3) {
+			} else if (method.equalsIgnoreCase("DELETE")
+					&& path != null
+					&& path.startsWith("/movies/")
+					&& path.length() > "/movies/".length()) {
 				handleDeleteRequestWithId(ex);
-			} else if (method.equalsIgnoreCase("GET") && ex.getRequestURI().getQuery() != null) {
+			} else if (method.equalsIgnoreCase("GET")
+					&& "/movies".equals(path)
+					&& query != null
+					&& query.startsWith("year=")) {
 				handleGetRequestWithQuery(ex);
 			}
 		}
@@ -82,21 +98,21 @@ public class MoviesServer {
 
 			if (ex.getRequestURI().getQuery().startsWith("year=")) {
 				String query = ex.getRequestURI().getQuery();
-				String yearStr = query.split("=")[1];
+				String yearStr = query.substring("year=".length());
 				if (isNotInteger(yearStr)) {
 					responseSender(ex, 400, "Некорректный год. Здесь должны быть цифры");
 				} else {
 					int yearInt = Integer.parseInt(yearStr);
 					if (hasMoviesFromYear(yearInt)) {
-						Map<Movie, Integer> moviesYears = moviesStore.getMovies().entrySet().stream()
-								.filter(movie -> movie.getKey().getYear() == yearInt)
-								.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+						List<Movie> moviesYears = moviesStore.getMovies().stream()
+								.filter(movie -> movie.getYear() == yearInt)
+								.collect(Collectors.toList());
 						String jsonResponse = gson.toJson(moviesYears);
 						sendJson(ex, 200, jsonResponse);
 					} else {
 						Map<Movie, Integer> moviesYears = new HashMap<>();
 						String jsonResponse = gson.toJson(moviesYears);
-						sendJson(ex, 200,jsonResponse);
+						sendJson(ex, 200, jsonResponse);
 					}
 				}
 			}
@@ -104,7 +120,8 @@ public class MoviesServer {
 
 		private void handleDeleteRequestWithId(HttpExchange ex) throws IOException {
 			String path = ex.getRequestURI().getPath();
-			String idRequest = path.split("/")[2];
+
+			String idRequest = path.substring("/movies/".length());
 			if (isNotInteger(idRequest)) {
 				responseSender(ex, 400, "Некорректный ID");
 			} else {
@@ -176,7 +193,7 @@ public class MoviesServer {
 
 		private void handleGetRequestWithId(HttpExchange ex) throws IOException {
 			String path = ex.getRequestURI().getPath();
-			String idRequest = path.split("/")[2];
+			String idRequest = path.substring("/movies/".length());
 			if (isNotInteger(idRequest)) {
 				responseSender(ex, 400, "Некорректный ID");
 			} else {
@@ -204,7 +221,7 @@ public class MoviesServer {
 		}
 
 		private boolean hasMoviesFromYear(int targetYear) {
-			return moviesStore.getMovies().keySet().stream()
+			return moviesStore.getMovies().stream()
 					.anyMatch(movie -> movie.getYear() == targetYear);
 		}
 	}
@@ -212,7 +229,7 @@ public class MoviesServer {
 	public MoviesServer(MoviesStore moviesStore, int port) {
 		try {
 
-			server = HttpServer.create(new InetSocketAddress(port), 0);  // создали сервер
+			server = HttpServer.create(new InetSocketAddress(port), DEFAULT_BACKLOG);  // создали сервер
 			server.createContext("/movies", new MoviesHandler(moviesStore));
 		} catch (IOException e) {
 			throw new RuntimeException("Не удалось создать HTTP-сервер", e);
@@ -225,7 +242,7 @@ public class MoviesServer {
 	}
 
 	public void stop() {
-		server.stop(0);
+		server.stop(IMMEDIATE_STOP_DELAY);
 		System.out.println("Сервер остановлен");
 	}
 }

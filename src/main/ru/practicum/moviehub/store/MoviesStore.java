@@ -1,29 +1,34 @@
 package ru.practicum.moviehub.store;
 
 import ru.practicum.moviehub.model.Movie;
-import java.util.HashMap;
-import java.util.Map;
+
+import java.util.*;
 
 public class MoviesStore {
-	private Map<Movie, Integer> movies = new HashMap<>();
+	private List<Movie> movies = new ArrayList<>();
+	private int idSequence = 1;
 
 	public void addMovie(Movie movie) {
-		movies.put(movie,movie.getId());
+		movie.setId(idSequence++);
+		movies.add(movie);
 	}
 
-	public void delMovieById(int id) {
-		movies.entrySet().removeIf(entry -> entry.getValue() == id);
+	public void addMovies(List<Movie> newMovies) {
+		for (Movie movie : newMovies) {
+			addMovie(movie);
+		}
 	}
 
 	public Movie getMoviesById(int id) {
-		return movies.entrySet().stream()
-				.filter(entry -> entry.getValue() == id)
-				.map(Map.Entry::getKey)
-				.findFirst()
-				.orElse(null);
+		for (Movie movie : movies) {
+			if (movie.getId() == id) {
+				return movie;
+			}
+		}
+		return null;
 	}
 
-	public Map<Movie, Integer> getMovies() {
+	public List<Movie> getMovies() {
 		return this.movies;
 	}
 
@@ -32,10 +37,19 @@ public class MoviesStore {
 	}
 
 	public boolean containsMovieById(int id) {
-		return movies.containsValue(id);
+		for (Movie movie : movies) {
+			if (movie.getId() == id) {
+				return true;
+			}
+		}
+		return false;
+	}
+
+	public void delMovieById(int id) {
+		movies.removeIf(movie -> movie.getId() == id);
 	}
 
 	public boolean containsMovieByMovie(Movie movie) {
-		return getMovies().containsKey(movie);
+		return getMovies().contains(movie);
 	}
 }
