@@ -12,7 +12,7 @@ public class ErrorResponse {
 		details = new ArrayList<>();
 	}
 
-	public void addDetail(String detail){
+	public void addDetail(String detail) {
 		details.add(detail);
 	}
 
