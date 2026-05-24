@@ -31,7 +31,7 @@ public class MoviesStore {
 		this.movies.clear();
 	}
 
-	public boolean containsMovieById (int id) {
+	public boolean containsMovieById(int id) {
 		return movies.containsValue(id);
 	}
 
